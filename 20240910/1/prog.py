@@ -1,2 +1,2 @@
 array = eval(input())
-print(sorted(array))
+print(*sorted(array), sep=", ")
