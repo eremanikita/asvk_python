@@ -1,0 +1,8 @@
+a = Triangle((1, 0), (0, 1), (0, 0))
+print(abs(a))
+b = Triangle((2, 0), (0, 2), (0, 0))
+print(a < b)
+print(b > a)
+print(bool(a) and bool(b))
+print(a in b, b in a)
+print(a & b, b & a)

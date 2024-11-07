@@ -1,0 +1,7 @@
+a = Triangle((1, 0), (0, 1), (0, 0))
+c = Triangle((0, 0), (0, 0), (0, 0))
+
+print(a in a, c in c)
+print(c in a, a in c)
+print(c < a, a < c)
+print(a & c, c & a)
