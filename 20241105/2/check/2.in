@@ -1,5 +1,5 @@
 a = Triangle((1, 0), (0, 1), (0, 0))
-print(abs(a))
+print(round(abs(a), 3))
 b = Triangle((2, 0), (0, 2), (0, 0))
 print(a < b)
 print(b > a)

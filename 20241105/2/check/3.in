@@ -1,6 +1,8 @@
 a = Triangle((1, 0), (0, 1), (0, 0))
 c = Triangle((0, 0), (0, 0), (0, 0))
 
+print(round(abs(Triangle((0,0), (5,0), (2,0))), 3))
+print(round(abs(a), 3))
 print(a in a, c in c)
 print(c in a, a in c)
 print(c < a, a < c)
