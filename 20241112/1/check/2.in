@@ -1,0 +1,5 @@
+a = DivStr()
+a += "abc"
+print(* a // 1)
+print(a % 1)
+

@@ -1,0 +1,5 @@
+a = DivStr("123")
+b = DivStr("456")
+c = a + b
+print(* c // 5)
+print(c % 5)

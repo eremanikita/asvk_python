@@ -33,6 +33,9 @@ class Maze:
         coord_1 = key[0], key[1].start
         coord_2 = key[1].stop, key[2]
 
+        if coord_1 == coord_2:
+            return True        
+
         visited = set()
         plan_to_visit = set()
         visited.add(coord_1)
