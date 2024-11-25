@@ -1,0 +1,14 @@
+w = Vowel(a=5)
+print(w, w.full)
+
+print(w.answer)
+
+try:
+    w.answer = 10
+except Exception:
+    print("exception")
+
+try:
+    w.u
+except Exception:
+    print("no u")

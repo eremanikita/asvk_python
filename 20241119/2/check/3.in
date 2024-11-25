@@ -1,0 +1,13 @@
+class C:
+    num = Num()
+
+
+c = b = C()
+a = C()
+
+b.num = 10
+
+print(c.num, b.num, a.num)
+
+a.num = range(1, 10, 2)
+print(a.num, c.num)

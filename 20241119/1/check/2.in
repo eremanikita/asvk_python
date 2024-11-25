@@ -1,0 +1,15 @@
+@objcount
+class P:
+    pass
+
+@objcount
+class S:
+    pass
+
+p = P()
+s = S()
+print(s.counter, S.counter, p.counter, p.counter)
+p1 = p2 = P()
+print(p.counter, P.counter)
+del p1, p2
+print(p.counter, P.counter)

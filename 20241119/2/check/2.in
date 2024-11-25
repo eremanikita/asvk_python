@@ -1,0 +1,14 @@
+class C:
+    num = Num()
+
+c = C()
+c.num = 5
+print(c.num)
+
+print(C().num)
+
+c.num = [1, 2]
+print(c.num)
+
+c.num = [1, 2, 3]
+print(c.num)

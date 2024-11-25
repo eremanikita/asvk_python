@@ -1,0 +1,5 @@
+w = Vowel(a=5, e=" ", i=[1,2], o=1, u=2)
+print(w, w.full)
+w.y = 5
+print(w, w.full)
+print(w.answer)
