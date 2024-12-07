@@ -1,0 +1,17 @@
+class Figure(metaclass=dump):
+    count = 0
+
+    def __init__(self, figure_type):
+        self.figure_type = figure_type
+        self.__class__.count += 1
+
+    def __call__(self, **kwargs):
+        if kwargs['figure_type'] == self.figure_type:
+            return True
+        else:
+            return False
+
+
+horse = Figure('horse')
+print(horse)
+print(horse(figure_type='horse'))

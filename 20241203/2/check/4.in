@@ -1,0 +1,6 @@
+store 1 x 5
+out x
+out y
+
+div x y result
+out result

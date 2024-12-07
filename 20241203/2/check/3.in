@@ -1,0 +1,3 @@
+ifeq x y good
+
+out x

@@ -1,0 +1,4 @@
+__init__ ('horse',) {}
+<__main__.Figure object at 0x102c904d0>
+__call__ () {'figure_type': 'horse'}
+True

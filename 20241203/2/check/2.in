@@ -1,0 +1,16 @@
+store 100 y
+store 50 x
+store 1 less
+store 0 more
+
+out x
+out y
+        ifle x y less
+        out more
+        ifeq x x end
+
+less:   out less
+        ifeq x x end
+
+end: stop
+out x
