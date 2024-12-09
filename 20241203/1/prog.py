@@ -8,7 +8,7 @@ class dump(type):
         for i in filter(lambda x: callable(x[1]), ns.items()):
             def wrapper(func):
                 def new_func(*args, **kwargs):
-                    print(func.__name__, args[1:], kwargs)
+                    print(f"{func.__name__}:, {args[1:]}, {kwargs}")
                     return func(*args, **kwargs)
 
                 return new_func
