@@ -22,6 +22,25 @@ def get_last_commit_hash(branches_list, branch_name):
         return f.read().rstrip()
 
 
+def get_tree_name(blob):
+    for line in blob.splitlines():
+        if line.startswith("tree"):
+            return line.split()[1]
+
+
+def parse_tree_object(tree_data):
+    _, _, content = tree_data.partition(b'\x00')
+    files = []
+    while content:
+        mode_name, content = content.split(b'\x00', 1)
+        mode, name = mode_name.split(b' ', 1)
+        sha1, content = content[:20], content[20:]
+        sha1_hex = sha1.hex()
+        files.append(" ".join([mode.decode(), name.decode(), sha1_hex]))
+
+    return files
+
+
 match len(argv):
     case 1:
         print("Ошибка ввода параметров. Должен быть передан путь к репозиторию.")
@@ -36,3 +55,7 @@ match len(argv):
         head, _, blob = commit_object.partition(b'\x00')
         blob = blob.decode()
         print(blob)
+
+        tree_name = get_tree_name(blob)
+        tree_object = zlib.decompress(Path(argv[1] + f"/objects/{tree_name[:2]}/{tree_name[2:]}").read_bytes())
+        print(*parse_tree_object(tree_object))
