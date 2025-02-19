@@ -41,6 +41,19 @@ def parse_tree_object(tree_data):
     return files
 
 
+def show_commit_history(commit_hash):
+    tmp_commit = zlib.decompress(Path(argv[1] + f"/objects/{commit_hash[:2]}/{commit_hash[2:]}").read_bytes())
+    head, _, blob = tmp_commit.partition(b'\x00')
+    blob = blob.decode()
+    tree_name = get_tree_name(blob)
+    tree_object = zlib.decompress(Path(argv[1] + f"/objects/{tree_name[:2]}/{tree_name[2:]}").read_bytes())
+    print(f"TREE for commit {commit_hash}")
+    print(*parse_tree_object(tree_object))
+    for line in blob.splitlines():
+        if line.startswith("parent"):
+            show_commit_history(line.split()[1])
+
+
 match len(argv):
     case 1:
         print("Ошибка ввода параметров. Должен быть передан путь к репозиторию.")
@@ -56,6 +69,4 @@ match len(argv):
         blob = blob.decode()
         print(blob)
 
-        tree_name = get_tree_name(blob)
-        tree_object = zlib.decompress(Path(argv[1] + f"/objects/{tree_name[:2]}/{tree_name[2:]}").read_bytes())
-        print(*parse_tree_object(tree_object))
+        show_commit_history(last_commit)
