@@ -1,4 +1,4 @@
-from cowsay import cowsay
+from cowsay import cowsay, list_cows
 
 
 class Mob:
@@ -9,14 +9,21 @@ class Mob:
     def say(self):
         print(cowsay(self.message, cow=self.name))
 
+    @staticmethod
+    def check_name(name):
+        return name in list_cows()
+
 
 class Field:
     def __init__(self):
         self.field = [[None for _ in range(10)] for _ in range(10)]
 
     def add_mob(self, cord, name, message):
-        self.field[cord.x][cord.y] = Mob(message, name)
-        print(f"Added monster {name} to ({cord.x}, {cord.y}) saying {message}")
+        if Mob.check_name(name):
+            self.field[cord.x][cord.y] = Mob(message, name)
+            print(f"Added monster {name} to ({cord.x}, {cord.y}) saying {message}")
+        else:
+            print("Cannot add unknown monster")
 
 
 class Cord:
