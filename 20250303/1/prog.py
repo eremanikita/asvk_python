@@ -1,5 +1,6 @@
 from cowsay import cowsay, list_cows, read_dot_cow
 from io import StringIO
+import shlex
 
 
 class Cow:
@@ -76,7 +77,7 @@ class Game:
         self.field = Field()
         self.player = Player()
 
-    def add_mob(self, cord, name, message):
+    def add_mob(self, cord: Cord, name: str, message: str):
         self.field.add_mob(cord, name, message)
 
     def encounter(self):
@@ -89,18 +90,37 @@ class Game:
 
 
 def main():
+    required_keys = {"name", "hello", "hp", "coords"}
     game = Game()
     while line := input():
-        args = line.split()
-        match args[0]:
+        tokens = shlex.split(line)
+        match tokens[0]:
             case "up" | "down" | "left" | "right" as direction:
                 game.move_player(direction)
-            case "addmob":
-                if len(args[1:]) != 4:
-                    print("Invalid arguments")
+            case "addmob" if len(tokens) > 2:
+
+                params = {"name": tokens[1]}
+                i = 2
+                token_length = len(tokens)
+                while i < token_length:
+                    if tokens[i] == "hello":
+                        if i + 1 < token_length:
+                            params["hello"] = tokens[i + 1]
+                        i += 2
+                    elif tokens[i] == "hp":
+                        if i + 1 < len(tokens) and tokens[i + 1].isdigit() and int(tokens[i + 1]) > 0:
+                            params["hp"] = int(tokens[i + 1])
+                        i += 2
+                    elif tokens[i] == "coords":
+                        if i + 2 < len(tokens) and tokens[i + 1].isdigit() and tokens[i + 2].isdigit():
+                            params["coords"] = Cord(int(tokens[i + 1]), int(tokens[i + 2]))
+                        i += 3
+
+                if not (required_keys - params.keys()):
+                    game.add_mob(params["coords"], params["name"], params["hello"])
                 else:
-                    name, x, y, message = args[1:]
-                    game.add_mob(Cord(int(x), int(y)), name, message)
+                    print("Invalid command")
+
             case _:
                 print("Invalid command")
 
