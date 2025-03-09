@@ -18,9 +18,10 @@ class Cow:
 
 
 class Mob:
-    def __init__(self, message, name):
+    def __init__(self, message, name, hp):
         self.message = message
         self.name = name
+        self.hp = hp
 
     def say(self):
         if self.name in list_cows():
@@ -37,9 +38,9 @@ class Field:
     def __init__(self):
         self.field = [[None for _ in range(10)] for _ in range(10)]
 
-    def add_mob(self, cord, name, message):
+    def add_mob(self, cord, name, message, hp):
         if Mob.check_name(name):
-            self.field[cord.x][cord.y] = Mob(message, name)
+            self.field[cord.x][cord.y] = Mob(message, name, hp)
             print(f"Added monster {name} to ({cord.x}, {cord.y}) saying {message}")
         else:
             print("Cannot add unknown monster")
@@ -77,8 +78,8 @@ class Game:
         self.field = Field()
         self.player = Player()
 
-    def add_mob(self, cord: Cord, name: str, message: str):
-        self.field.add_mob(cord, name, message)
+    def add_mob(self, cord: Cord, name: str, message: str, hp: int) -> None:
+        self.field.add_mob(cord, name, message, hp)
 
     def encounter(self):
         if self.field.field[self.player.cord.x][self.player.cord.y] is not None:
@@ -117,7 +118,7 @@ def main():
                         i += 3
 
                 if not (required_keys - params.keys()):
-                    game.add_mob(params["coords"], params["name"], params["hello"])
+                    game.add_mob(params["coords"], params["name"], params["hello"], params["hp"])
                 else:
                     print("Invalid command")
 
