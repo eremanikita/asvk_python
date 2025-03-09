@@ -1,4 +1,19 @@
-from cowsay import cowsay, list_cows
+from cowsay import cowsay, list_cows, read_dot_cow
+from io import StringIO
+
+
+class Cow:
+    custom_cows = {
+        "jgsbat": """    ,_                    _,
+    ) '-._  ,_    _,  _.-' (
+    )  _.-'.|\\\\--//|.'-._  (
+     )'   .'\\/o\\/o\\/'.   `(
+      ) .' . \\====/ . '. (
+       )  / <<    >> \\  (
+        '-._/``  ``\\_.-'
+  jgs     __\\\\'--'//__
+         (((""`  `"")))"""
+    }
 
 
 class Mob:
@@ -7,11 +22,14 @@ class Mob:
         self.name = name
 
     def say(self):
-        print(cowsay(self.message, cow=self.name))
+        if self.name in list_cows():
+            print(cowsay(self.message, cow=self.name))
+        else:
+            print(cowsay(self.message, cowfile=read_dot_cow(StringIO(Cow.custom_cows[self.name]))))
 
     @staticmethod
     def check_name(name):
-        return name in list_cows()
+        return name in list_cows() or name in Cow.custom_cows
 
 
 class Field:
