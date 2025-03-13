@@ -1,5 +1,5 @@
 import cmd
-
+import readline
 from enum import Enum
 from cowsay import cowsay, list_cows, read_dot_cow
 from io import StringIO
@@ -25,6 +25,12 @@ class Direction(Enum):
     DOWN = 2
     RIGHT = 3
     LEFT = 4
+
+
+class Weapon(Enum):
+    SWORD = 10
+    SPEAR = 15
+    AXE = 20
 
 
 class Cord:
@@ -97,7 +103,6 @@ class Player:
 
 
 class GameSession:
-    DAMAGE_FACTOR = 10
 
     def __init__(self):
         print("<<< Welcome to Python-MUD 0.1 >>>")
@@ -115,10 +120,10 @@ class GameSession:
         self.player.move(direction)
         self.encounter()
 
-    def attack_monster(self):
+    def attack_monster(self, damage: int):
         if self.field.check_cell(self.player.cord):
             monster = self.field.get_monster(self.player.cord)
-            hp_value, damage_value = monster.get_damage(GameSession.DAMAGE_FACTOR)
+            hp_value, damage_value = monster.get_damage(damage)
             print(f"Attacked {monster.name}, damage {damage_value} hp")
             if hp_value == 0:
                 print(f"{monster.name} died")
@@ -156,6 +161,19 @@ class ParserService:
 
         return params if not (ParserService.required_keys - params.keys()) else None
 
+    @staticmethod
+    def parse_attack(line: str):
+        tokens = shlex.split(line)
+        if len(tokens) == 2 and tokens[0] == "with":
+            weapon_name = tokens[1].upper()
+        else:
+            weapon_name = Weapon.SWORD.name
+
+        if any(weapon_name == i.name for i in Weapon):
+            return Weapon[weapon_name].value
+        else:
+            print("Unknown weapon")
+
 
 class MUDGame(cmd.Cmd):
     game = GameSession()
@@ -188,13 +206,26 @@ class MUDGame(cmd.Cmd):
 
     def do_attack(self, args):
         """Attack the monster in the same cell if it is on it
-        -10 hp
+        weapons:
+            sword: -10 hp
+            spear: -15 hp
+            axe: -20 hp
         nothing if there is no monster in the same cell"""
-        MUDGame.game.attack_monster()
+        if damage := ParserService.parse_attack(args):
+            MUDGame.game.attack_monster(damage)
+
+    def complete_attack(self, text, line, begidx, endidx):
+        parts = line.split(" ")
+        if len(parts) == 2:
+            return ["with"]
+        elif len(parts) > 2 and parts[1] == "with":
+            return [weapon.name.lower() for weapon in Weapon if weapon.name.lower().startswith(text)]
+        return []
 
     def default(self, line):
         print("Invalid command")
 
 
 if __name__ == "__main__":
+    readline.parse_and_bind("bind ^I rl_complete")
     MUDGame().cmdloop()
