@@ -1,3 +1,6 @@
+import cmd
+
+from enum import Enum
 from cowsay import cowsay, list_cows, read_dot_cow
 from io import StringIO
 import shlex
@@ -15,6 +18,13 @@ class Cow:
   jgs     __\\\\'--'//__
          (((""`  `"")))"""
     }
+
+
+class Direction(Enum):
+    UP = 1
+    DOWN = 2
+    RIGHT = 3
+    LEFT = 4
 
 
 class Mob:
@@ -59,20 +69,20 @@ class Player:
     def __init__(self):
         self.cord = Cord()
 
-    def move(self, direction):
+    def move(self, direction: Direction):
         match direction:
-            case "up":
+            case Direction.UP:
                 self.cord = Cord(self.cord.x, (self.cord.y - 1) % 10)
-            case "down":
+            case Direction.DOWN:
                 self.cord = Cord(self.cord.x, (self.cord.y + 1) % 10)
-            case "left":
+            case Direction.LEFT:
                 self.cord = Cord((self.cord.x - 1) % 10, self.cord.y)
-            case "right":
+            case Direction.RIGHT:
                 self.cord = Cord((self.cord.x + 1) % 10, self.cord.y)
         print(f"Moved to {self.cord}")
 
 
-class Game:
+class GameSession:
     def __init__(self):
         print("<<< Welcome to Python-MUD 0.1 >>>")
         self.field = Field()
@@ -85,46 +95,33 @@ class Game:
         if self.field.field[self.player.cord.x][self.player.cord.y] is not None:
             self.field.field[self.player.cord.x][self.player.cord.y].say()
 
-    def move_player(self, direction):
+    def move_player(self, direction: Direction):
         self.player.move(direction)
         self.encounter()
 
 
-def main():
-    required_keys = {"name", "hello", "hp", "coords"}
-    game = Game()
-    while line := input():
-        tokens = shlex.split(line)
-        match tokens[0]:
-            case "up" | "down" | "left" | "right" as direction:
-                game.move_player(direction)
-            case "addmob" if len(tokens) > 2:
+class MUDGame(cmd.Cmd):
+    game = GameSession()
+    prompt = "command>> "
 
-                params = {"name": tokens[1]}
-                i = 2
-                token_length = len(tokens)
-                while i < token_length:
-                    if tokens[i] == "hello":
-                        if i + 1 < token_length:
-                            params["hello"] = tokens[i + 1]
-                        i += 2
-                    elif tokens[i] == "hp":
-                        if i + 1 < len(tokens) and tokens[i + 1].isdigit() and int(tokens[i + 1]) > 0:
-                            params["hp"] = int(tokens[i + 1])
-                        i += 2
-                    elif tokens[i] == "coords":
-                        if i + 2 < len(tokens) and tokens[i + 1].isdigit() and tokens[i + 2].isdigit():
-                            params["coords"] = Cord(int(tokens[i + 1]), int(tokens[i + 2]))
-                        i += 3
+    def do_up(self, args):
+        self.game.move_player(Direction.UP)
 
-                if not (required_keys - params.keys()):
-                    game.add_mob(params["coords"], params["name"], params["hello"], params["hp"])
-                else:
-                    print("Invalid command")
+    def do_down(self, args):
+        self.game.move_player(Direction.DOWN)
 
-            case _:
-                print("Invalid command")
+    def do_left(self, args):
+        self.game.move_player(Direction.LEFT)
+
+    def do_right(self, args):
+        self.game.move_player(Direction.RIGHT)
+
+    def do_addmob(self, args):
+        pass
+
+    def default(self, line):
+        print("Invalid command")
 
 
 if __name__ == "__main__":
-    main()
+    MUDGame().cmdloop()
