@@ -27,6 +27,15 @@ class Direction(Enum):
     LEFT = 4
 
 
+class Cord:
+    def __init__(self, x=0, y=0):
+        self.x: int = x
+        self.y: int = y
+
+    def __str__(self):
+        return f"({self.x}, {self.y})"
+
+
 class Mob:
     def __init__(self, message, name, hp):
         self.message = message
@@ -38,6 +47,11 @@ class Mob:
             print(cowsay(self.message, cow=self.name))
         else:
             print(cowsay(self.message, cowfile=read_dot_cow(StringIO(Cow.custom_cows[self.name]))))
+
+    def get_damage(self, hp):
+        damage_value = min(hp, self.hp)
+        self.hp -= damage_value
+        return self.hp, damage_value
 
     @staticmethod
     def check_name(name):
@@ -55,14 +69,14 @@ class Field:
         else:
             print("Cannot add unknown monster")
 
+    def get_monster(self, cord) -> Mob | None:
+        return self.field[cord.x][cord.y]
 
-class Cord:
-    def __init__(self, x=0, y=0):
-        self.x: int = x
-        self.y: int = y
+    def del_mob(self, cord):
+        self.field[cord.x][cord.y] = None
 
-    def __str__(self):
-        return f"({self.x}, {self.y})"
+    def check_cell(self, cord: Cord):
+        return not self.get_monster(cord) is None
 
 
 class Player:
@@ -83,6 +97,8 @@ class Player:
 
 
 class GameSession:
+    DAMAGE_FACTOR = 10
+
     def __init__(self):
         print("<<< Welcome to Python-MUD 0.1 >>>")
         self.field = Field()
@@ -92,12 +108,25 @@ class GameSession:
         self.field.add_mob(cord, name, message, hp)
 
     def encounter(self):
-        if self.field.field[self.player.cord.x][self.player.cord.y] is not None:
-            self.field.field[self.player.cord.x][self.player.cord.y].say()
+        if self.field.check_cell(self.player.cord):
+            self.field.get_monster(self.player.cord).say()
 
     def move_player(self, direction: Direction):
         self.player.move(direction)
         self.encounter()
+
+    def attack_monster(self):
+        if self.field.check_cell(self.player.cord):
+            monster = self.field.get_monster(self.player.cord)
+            hp_value, damage_value = monster.get_damage(GameSession.DAMAGE_FACTOR)
+            print(f"Attacked {monster.name}, damage {damage_value} hp")
+            if hp_value == 0:
+                print(f"{monster.name} died")
+                self.field.del_mob(self.player.cord)
+            else:
+                print(f"{monster.name} now has {hp_value}")
+        else:
+            print("No monster here")
 
 
 class ParserService:
@@ -150,6 +179,9 @@ class MUDGame(cmd.Cmd):
             MUDGame.game.add_mob(params["coords"], params["name"], params["hello"], params["hp"])
         else:
             print("Invalid command")
+
+    def do_attack(self, args):
+        MUDGame.game.attack_monster()
 
     def default(self, line):
         print("Invalid command")
