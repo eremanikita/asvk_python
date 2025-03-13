@@ -162,18 +162,24 @@ class MUDGame(cmd.Cmd):
     prompt = "command>> "
 
     def do_up(self, args):
+        """Move the player up"""
         self.game.move_player(Direction.UP)
 
     def do_down(self, args):
+        """Move the player down"""
         self.game.move_player(Direction.DOWN)
 
     def do_left(self, args):
+        """Move the player left"""
         self.game.move_player(Direction.LEFT)
 
     def do_right(self, args):
+        """Move the player right"""
         MUDGame.game.move_player(Direction.RIGHT)
 
     def do_addmob(self, args):
+        """Add a mob to the field
+        addmob <monster_name> hello <hello_string> hp <hitpoints> coords <x> <y>"""
         params = ParserService.parse_addmob(args)
         if params:
             MUDGame.game.add_mob(params["coords"], params["name"], params["hello"], params["hp"])
@@ -181,6 +187,9 @@ class MUDGame(cmd.Cmd):
             print("Invalid command")
 
     def do_attack(self, args):
+        """Attack the monster in the same cell if it is on it
+        -10 hp
+        nothing if there is no monster in the same cell"""
         MUDGame.game.attack_monster()
 
     def default(self, line):
