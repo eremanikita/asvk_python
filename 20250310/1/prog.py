@@ -72,8 +72,10 @@ class Field:
         if Mob.check_name(name):
             self.field[cord.x][cord.y] = Mob(message, name, hp)
             print(f"Added monster {name} to ({cord.x}, {cord.y}) saying {message}")
+            return self.field[cord.x][cord.y]
         else:
             print("Cannot add unknown monster")
+            return None
 
     def get_monster(self, cord) -> Mob | None:
         return self.field[cord.x][cord.y]
@@ -103,14 +105,23 @@ class Player:
 
 
 class GameSession:
+    DAMAGE_FACTOR = 10
+    monsters = set()
 
     def __init__(self):
         print("<<< Welcome to Python-MUD 0.1 >>>")
         self.field = Field()
         self.player = Player()
 
+    def get_current_monster(self) -> Mob | None:
+        return self.field.get_monster(self.player.cord)
+
+    def get_monsters(self):
+        return self.monsters
+
     def add_mob(self, cord: Cord, name: str, message: str, hp: int) -> None:
-        self.field.add_mob(cord, name, message, hp)
+        if answer := self.field.add_mob(cord, name, message, hp):
+            self.monsters.add(answer)
 
     def encounter(self):
         if self.field.check_cell(self.player.cord):
@@ -128,6 +139,7 @@ class GameSession:
             if hp_value == 0:
                 print(f"{monster.name} died")
                 self.field.del_mob(self.player.cord)
+                self.monsters.remove(monster)
             else:
                 print(f"{monster.name} now has {hp_value}")
         else:
@@ -162,21 +174,27 @@ class ParserService:
         return params if not (ParserService.required_keys - params.keys()) else None
 
     @staticmethod
-    def parse_attack(line: str):
+    def parse_attack(line, monster: Mob | None) -> int:
         tokens = shlex.split(line)
-        if len(tokens) == 2 and tokens[0] == "with":
-            weapon_name = tokens[1].upper()
+        if len(tokens) == 0:
+            print("Invalid command")
+        elif monster and tokens[0] == monster.name:
+            if len(tokens) == 3 and tokens[1] == "with":
+                weapon_name = tokens[2].upper()
+            else:
+                weapon_name = Weapon.SWORD.name
+            if any(weapon_name == i.name for i in Weapon):
+                return Weapon[weapon_name].value
+            else:
+                print("Unknown weapon")
         else:
-            weapon_name = Weapon.SWORD.name
-
-        if any(weapon_name == i.name for i in Weapon):
-            return Weapon[weapon_name].value
-        else:
-            print("Unknown weapon")
+            print(f"No {tokens[0]} here")
+        return -1
 
 
 class MUDGame(cmd.Cmd):
     game = GameSession()
+    AVAILABLE_MONSTER_NAMES = list_cows() | Cow.custom_cows.keys()
     prompt = "command>> "
 
     def do_up(self, args):
@@ -205,20 +223,22 @@ class MUDGame(cmd.Cmd):
             print("Invalid command")
 
     def do_attack(self, args):
-        """Attack the monster in the same cell if it is on it
+        """Attack the specific monster in the same cell if it is on it
         weapons:
             sword: -10 hp
             spear: -15 hp
             axe: -20 hp
-        nothing if there is no monster in the same cell"""
-        if damage := ParserService.parse_attack(args):
+        nothing if there is no monster in the same cell or the name is incorrect"""
+        if (damage := ParserService.parse_attack(args, MUDGame.game.get_current_monster())) != -1:
             MUDGame.game.attack_monster(damage)
 
     def complete_attack(self, text, line, begidx, endidx):
         parts = line.split(" ")
         if len(parts) == 2:
+            return [c for c in self.AVAILABLE_MONSTER_NAMES if c.startswith(text)]
+        elif len(parts) == 3:
             return ["with"]
-        elif len(parts) > 2 and parts[1] == "with":
+        elif len(parts) > 3 and parts[2] == "with":
             return [weapon.name.lower() for weapon in Weapon if weapon.name.lower().startswith(text)]
         return []
 
