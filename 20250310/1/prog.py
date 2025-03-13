@@ -100,6 +100,34 @@ class GameSession:
         self.encounter()
 
 
+class ParserService:
+    required_keys = {"name", "hello", "hp", "coords"}
+
+    @staticmethod
+    def parse_addmob(line: str):
+        tokens = shlex.split(line)
+        params = {"name": tokens[0]}
+        i = 1
+        token_length = len(tokens)
+        while i < token_length:
+            if tokens[i] == "hello":
+                if i + 1 < token_length:
+                    params["hello"] = tokens[i + 1]
+                i += 2
+            elif tokens[i] == "hp":
+                if i + 1 < len(tokens) and tokens[i + 1].isdigit() and int(tokens[i + 1]) > 0:
+                    params["hp"] = int(tokens[i + 1])
+                i += 2
+            elif tokens[i] == "coords":
+                if i + 2 < len(tokens) and tokens[i + 1].isdigit() and tokens[i + 2].isdigit():
+                    params["coords"] = Cord(int(tokens[i + 1]), int(tokens[i + 2]))
+                i += 3
+            else:
+                i += 1
+
+        return params if not (ParserService.required_keys - params.keys()) else None
+
+
 class MUDGame(cmd.Cmd):
     game = GameSession()
     prompt = "command>> "
@@ -114,10 +142,14 @@ class MUDGame(cmd.Cmd):
         self.game.move_player(Direction.LEFT)
 
     def do_right(self, args):
-        self.game.move_player(Direction.RIGHT)
+        MUDGame.game.move_player(Direction.RIGHT)
 
     def do_addmob(self, args):
-        pass
+        params = ParserService.parse_addmob(args)
+        if params:
+            MUDGame.game.add_mob(params["coords"], params["name"], params["hello"], params["hp"])
+        else:
+            print("Invalid command")
 
     def default(self, line):
         print("Invalid command")
