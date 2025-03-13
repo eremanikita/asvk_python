@@ -1,5 +1,5 @@
 import cmd
-
+import readline
 from enum import Enum
 from cowsay import cowsay, list_cows, read_dot_cow
 from io import StringIO
@@ -66,8 +66,10 @@ class Field:
         if Mob.check_name(name):
             self.field[cord.x][cord.y] = Mob(message, name, hp)
             print(f"Added monster {name} to ({cord.x}, {cord.y}) saying {message}")
+            return self.field[cord.x][cord.y]
         else:
             print("Cannot add unknown monster")
+            return None
 
     def get_monster(self, cord) -> Mob | None:
         return self.field[cord.x][cord.y]
@@ -98,14 +100,22 @@ class Player:
 
 class GameSession:
     DAMAGE_FACTOR = 10
+    monsters = set()
 
     def __init__(self):
         print("<<< Welcome to Python-MUD 0.1 >>>")
         self.field = Field()
         self.player = Player()
 
+    def get_current_monster(self) -> Mob | None:
+        return self.field.get_monster(self.player.cord)
+
+    def get_monsters(self):
+        return self.monsters
+
     def add_mob(self, cord: Cord, name: str, message: str, hp: int) -> None:
-        self.field.add_mob(cord, name, message, hp)
+        if answer := self.field.add_mob(cord, name, message, hp):
+            self.monsters.add(answer)
 
     def encounter(self):
         if self.field.check_cell(self.player.cord):
@@ -123,6 +133,7 @@ class GameSession:
             if hp_value == 0:
                 print(f"{monster.name} died")
                 self.field.del_mob(self.player.cord)
+                self.monsters.remove(monster)
             else:
                 print(f"{monster.name} now has {hp_value}")
         else:
@@ -156,9 +167,22 @@ class ParserService:
 
         return params if not (ParserService.required_keys - params.keys()) else None
 
+    @staticmethod
+    def parse_attack(line, monster: Mob | None) -> bool:
+        tokens = shlex.split(line)
+        if len(tokens) != 1:
+            print("Invalid command")
+        elif monster and tokens[0] == monster.name:
+            return True
+        else:
+            print(f"No {tokens[0]} here")
+        return False
+
+
 
 class MUDGame(cmd.Cmd):
     game = GameSession()
+    AVAILABLE_MONSTER_NAMES = list_cows() | Cow.custom_cows.keys()
     prompt = "command>> "
 
     def do_up(self, args):
@@ -187,14 +211,21 @@ class MUDGame(cmd.Cmd):
             print("Invalid command")
 
     def do_attack(self, args):
-        """Attack the monster in the same cell if it is on it
+        """Attack the specific monster in the same cell if it is on it
         -10 hp
-        nothing if there is no monster in the same cell"""
-        MUDGame.game.attack_monster()
+        nothing if there is no monster in the same cell or the name is incorrect"""
+        if ParserService.parse_attack(args, MUDGame.game.get_current_monster()):
+            MUDGame.game.attack_monster()
+
+    def complete_attack(self, text, line, begidx, endidx):
+        parts = line.split(" ")
+        if len(parts) == 2:
+            return [c for c in self.AVAILABLE_MONSTER_NAMES if c.startswith(text)]
 
     def default(self, line):
         print("Invalid command")
 
 
 if __name__ == "__main__":
+    readline.parse_and_bind("bind ^I rl_complete")
     MUDGame().cmdloop()
