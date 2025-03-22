@@ -1,0 +1,17 @@
+From 210d493c74d854faf0194e27d87f74c491853147 Mon Sep 17 00:00:00 2001
+From: eremanikita <eremanikita@gmail.com>
+Date: Sat, 22 Mar 2025 20:42:39 +0300
+Subject: [PATCH 6/6] fix filename
+
+---
+ 20250317/1/{sever.py => server.py} | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)
+ rename 20250317/1/{sever.py => server.py} (100%)
+
+diff --git a/20250317/1/sever.py b/20250317/1/server.py
+similarity index 100%
+rename from 20250317/1/sever.py
+rename to 20250317/1/server.py
+-- 
+2.39.5 (Apple Git-154)
+

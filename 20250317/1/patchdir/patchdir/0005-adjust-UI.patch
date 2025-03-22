@@ -1,0 +1,193 @@
+From f0927bebfe6c2668170512245fe849737bfa8144 Mon Sep 17 00:00:00 2001
+From: eremanikita <eremanikita@gmail.com>
+Date: Sat, 22 Mar 2025 19:30:56 +0300
+Subject: [PATCH 5/6] adjust UI
+
+---
+ 20250317/1/client.py | 73 ++++++++++++++++++++++++++++++++++++++------
+ 20250317/1/sever.py  | 13 +++++---
+ 2 files changed, 72 insertions(+), 14 deletions(-)
+
+diff --git a/20250317/1/client.py b/20250317/1/client.py
+index 38fb305..2e38c58 100644
+--- a/20250317/1/client.py
++++ b/20250317/1/client.py
+@@ -5,7 +5,23 @@ import socket
+ import shlex
+ from enum import Enum
+ import json
+-from cowsay import list_cows
++from io import StringIO
++
++from cowsay import list_cows, cowsay, read_dot_cow
++
++
++class Cow:
++    custom_cows = {
++        "jgsbat": """    ,_                    _,
++    ) '-._  ,_    _,  _.-' (
++    )  _.-'.|\\\\--//|.'-._  (
++     )'   .'\\/o\\/o\\/'.   `(
++      ) .' . \\====/ . '. (
++       )  / <<    >> \\  (
++        '-._/``  ``\\_.-'
++  jgs     __\\\\'--'//__
++         (((""`  `"")))"""
++    }
+ 
+ 
+ class Cord:
+@@ -16,6 +32,10 @@ class Cord:
+     def to_dict(self):
+         return {"x": self.x, "y": self.y}
+ 
++    @classmethod
++    def from_dict(cls, data):
++        return cls(**data)
++
+     def __str__(self):
+         return f"({self.x}, {self.y})"
+ 
+@@ -78,28 +98,63 @@ class ParserService:
+         return -1
+ 
+ 
++class UIService:
++    @staticmethod
++    def print_player_move(response):
++        print(f"Moved to {Cord.from_dict(response["coord"])}")
++        if "name" in response:
++            name, message = response["name"], response["message"]
++            if name in list_cows():
++                print(cowsay(message, cow=name))
++            else:
++                print(cowsay(message, cowfile=read_dot_cow(StringIO(Cow.custom_cows[name]))))
++
++    @staticmethod
++    def print_addmob(response, name, coords, message):
++        if response:
++            print(
++                f"Added monster {name} to {Cord.from_dict(coords)} saying {message}")
++        else:
++            print("Cannot add unknown monster")
++
++    @staticmethod
++    def print_attack(response, name):
++        if response:
++            print(f"Attacked {name}, damage {response[1]} hp")
++            if response[0] == 0:
++                print(f"{name} died")
++            else:
++                print(f"{name} now has {response[0]}")
++        else:
++            print("No monster here")
++
++
+ class MUDGame(cmd.Cmd):
+     prompt = "command>> "
+ 
+     def do_up(self, args):
+         """Move the player up"""
+         s.sendall((json.dumps({"command": "move", "params": Direction.UP.value.to_dict()}) + "\n").encode())
+-        print(s.recv(1024).decode())
++        response = json.loads(s.recv(1024).decode())
++        UIService.print_player_move(response)
+ 
+     def do_down(self, args):
+         """Move the player down"""
+         s.sendall((json.dumps({"command": "move", "params": Direction.DOWN.value.to_dict()}) + "\n").encode())
+-        print(s.recv(1024).decode())
++        response = json.loads(s.recv(1024).decode())
++        UIService.print_player_move(response)
+ 
+     def do_left(self, args):
+         """Move the player left"""
+         s.sendall((json.dumps({"command": "move", "params": Direction.LEFT.value.to_dict()}) + "\n").encode())
+-        print(s.recv(1024).decode())
++        response = json.loads(s.recv(1024).decode())
++        UIService.print_player_move(response)
+ 
+     def do_right(self, args):
+         """Move the player right"""
+         s.sendall((json.dumps({"command": "move", "params": Direction.RIGHT.value.to_dict()}) + "\n").encode())
+-        print(s.recv(1024).decode())
++        response = json.loads(s.recv(1024).decode())
++        UIService.print_player_move(response)
+ 
+     def do_addmob(self, args):
+         """Add a mob to the field
+@@ -108,7 +163,8 @@ class MUDGame(cmd.Cmd):
+         params = ParserService.parse_addmob(args)
+         if params:
+             s.sendall((json.dumps({"command": "addmob", "params": params}) + "\n").encode())
+-            print(s.recv(1024).decode())
++            response = json.loads(s.recv(1024).decode())
++            UIService.print_addmob(response, params["name"], params["coords"], params["hello"])
+         else:
+             print("Invalid command")
+ 
+@@ -122,7 +178,8 @@ class MUDGame(cmd.Cmd):
+         if (result := ParserService.parse_attack(args)) != -1:
+             s.sendall(
+                 (json.dumps({"command": "attack", "params": {"name": result[0], "hp": result[1]}}) + "\n").encode())
+-            print(s.recv(1024).decode())
++            response = json.loads(s.recv(1024).decode())
++            UIService.print_attack(response, result[0])
+ 
+     def complete_attack(self, text, line, begidx, endidx):
+         parts = line.split(" ")
+@@ -146,5 +203,3 @@ if __name__ == "__main__":
+         s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+         s.connect((host, port))
+         MUDGame().cmdloop()
+-
+-# addmob sheep coords 0 0 hp 10 hello hello
+\ No newline at end of file
+diff --git a/20250317/1/sever.py b/20250317/1/sever.py
+index 5beea64..26e25ec 100644
+--- a/20250317/1/sever.py
++++ b/20250317/1/sever.py
+@@ -16,6 +16,10 @@ class Cord:
+     def to_dict(self):
+         return {"x": self.x, "y": self.y}
+ 
++    @classmethod
++    def from_dict(cls, data):
++        return cls(**data)
++
+     def __add__(self, other):
+         return Cord((self.x + other.x) % 10, (self.y + other.y) % 10)
+ 
+@@ -36,7 +40,7 @@ class Mob:
+ 
+     @staticmethod
+     def check_name(name):
+-        return name in list_cows() or name in Cows
++        return name in list_cows() or any(cow.name == name for cow in Cows)
+ 
+ 
+ class Field:
+@@ -83,7 +87,7 @@ class GameSession:
+         return self.monsters
+ 
+     def add_mob(self, cord: Cord, name: str, message: str, hp: int) -> bool:
+-        if answer := self.field.add_mob(cord, name, message, hp):
++        if not (answer := self.field.add_mob(cord, name, message, hp)) is None:
+             self.monsters.add(answer)
+             return True
+         return False
+@@ -119,9 +123,8 @@ async def echo(reader, writer):
+                 writer.write(json.dumps(result).encode())
+             case 'addmob':
+                 params = json_data["params"]
+-                result = game.add_mob(Cord(params["coords"]["x"], params["coords"]["y"]), params["name"],
+-                                      params["hello"], params["hp"])
+-                writer.write(json.dumps(result is not None).encode())
++                result = game.add_mob(Cord.from_dict(params["coords"]), params["name"], params["hello"], params["hp"])
++                writer.write(json.dumps(result).encode())
+             case 'attack':
+                 params = json_data["params"]
+                 result = game.attack_monster(params["name"], params["hp"])
+-- 
+2.39.5 (Apple Git-154)
+
