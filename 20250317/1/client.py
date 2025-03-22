@@ -5,6 +5,7 @@ import socket
 import shlex
 from enum import Enum
 import json
+from cowsay import list_cows
 
 
 class Cord:
@@ -24,6 +25,12 @@ class Direction(Enum):
     DOWN = Cord(0, 1)
     RIGHT = Cord(1, 0)
     LEFT = Cord(-1, 0)
+
+
+class Weapon(Enum):
+    SWORD = 10
+    SPEAR = 15
+    AXE = 20
 
 
 class ParserService:
@@ -52,6 +59,23 @@ class ParserService:
                 i += 1
 
         return params if not (ParserService.required_keys - params.keys()) else None
+
+    @staticmethod
+    def parse_attack(line):
+        tokens = shlex.split(line)
+        if len(tokens) == 0:
+            print("Invalid command")
+        else:
+            if len(tokens) == 3 and tokens[1] == "with":
+                weapon_name = tokens[2].upper()
+            else:
+                weapon_name = Weapon.SWORD.name
+
+            if any(weapon_name == i.name for i in Weapon):
+                return tokens[0], Weapon[weapon_name].value
+            else:
+                print("Unknown weapon")
+        return -1
 
 
 class MUDGame(cmd.Cmd):
@@ -82,6 +106,27 @@ class MUDGame(cmd.Cmd):
             s.sendall((json.dumps({"command": "addmob", "params": params}) + "\n").encode())
         else:
             print("Invalid command")
+
+    def do_attack(self, args):
+        """Attack the specific monster in the same cell if it is on it
+        weapons:
+            sword: -10 hp
+            spear: -15 hp
+            axe: -20 hp
+        nothing if there is no monster in the same cell or the name is incorrect"""
+        if (result := ParserService.parse_attack(args)) != -1:
+            s.sendall(
+                (json.dumps({"command": "attack", "params": {"name": result[0], "hp": result[1]}}) + "\n").encode())
+
+    def complete_attack(self, text, line, begidx, endidx):
+        parts = line.split(" ")
+        if len(parts) == 2:
+            return [c for c in list_cows() if c.startswith(text)]
+        elif len(parts) == 3:
+            return ["with"]
+        elif len(parts) > 3 and parts[2] == "with":
+            return [weapon.name.lower() for weapon in Weapon if weapon.name.lower().startswith(text)]
+        return []
 
     def default(self, line):
         print("Invalid command")
