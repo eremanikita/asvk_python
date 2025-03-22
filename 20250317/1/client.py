@@ -84,26 +84,31 @@ class MUDGame(cmd.Cmd):
     def do_up(self, args):
         """Move the player up"""
         s.sendall((json.dumps({"command": "move", "params": Direction.UP.value.to_dict()}) + "\n").encode())
-        print(s.recv(1024).rstrip().decode())
+        print(s.recv(1024).decode())
 
     def do_down(self, args):
         """Move the player down"""
         s.sendall((json.dumps({"command": "move", "params": Direction.DOWN.value.to_dict()}) + "\n").encode())
+        print(s.recv(1024).decode())
 
     def do_left(self, args):
         """Move the player left"""
         s.sendall((json.dumps({"command": "move", "params": Direction.LEFT.value.to_dict()}) + "\n").encode())
+        print(s.recv(1024).decode())
 
     def do_right(self, args):
         """Move the player right"""
         s.sendall((json.dumps({"command": "move", "params": Direction.RIGHT.value.to_dict()}) + "\n").encode())
+        print(s.recv(1024).decode())
 
     def do_addmob(self, args):
         """Add a mob to the field
         addmob <monster_name> hello <hello_string> hp <hitpoints> coords <x> <y>"""
+
         params = ParserService.parse_addmob(args)
         if params:
             s.sendall((json.dumps({"command": "addmob", "params": params}) + "\n").encode())
+            print(s.recv(1024).decode())
         else:
             print("Invalid command")
 
@@ -117,6 +122,7 @@ class MUDGame(cmd.Cmd):
         if (result := ParserService.parse_attack(args)) != -1:
             s.sendall(
                 (json.dumps({"command": "attack", "params": {"name": result[0], "hp": result[1]}}) + "\n").encode())
+            print(s.recv(1024).decode())
 
     def complete_attack(self, text, line, begidx, endidx):
         parts = line.split(" ")
@@ -140,3 +146,5 @@ if __name__ == "__main__":
         s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         s.connect((host, port))
         MUDGame().cmdloop()
+
+# addmob sheep coords 0 0 hp 10 hello hello
