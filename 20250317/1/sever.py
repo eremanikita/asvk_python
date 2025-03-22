@@ -16,6 +16,10 @@ class Cord:
     def to_dict(self):
         return {"x": self.x, "y": self.y}
 
+    @classmethod
+    def from_dict(cls, data):
+        return cls(**data)
+
     def __add__(self, other):
         return Cord((self.x + other.x) % 10, (self.y + other.y) % 10)
 
@@ -36,7 +40,7 @@ class Mob:
 
     @staticmethod
     def check_name(name):
-        return name in list_cows() or name in Cows
+        return name in list_cows() or any(cow.name == name for cow in Cows)
 
 
 class Field:
@@ -83,7 +87,7 @@ class GameSession:
         return self.monsters
 
     def add_mob(self, cord: Cord, name: str, message: str, hp: int) -> bool:
-        if answer := self.field.add_mob(cord, name, message, hp):
+        if not (answer := self.field.add_mob(cord, name, message, hp)) is None:
             self.monsters.add(answer)
             return True
         return False
@@ -119,9 +123,8 @@ async def echo(reader, writer):
                 writer.write(json.dumps(result).encode())
             case 'addmob':
                 params = json_data["params"]
-                result = game.add_mob(Cord(params["coords"]["x"], params["coords"]["y"]), params["name"],
-                                      params["hello"], params["hp"])
-                writer.write(json.dumps(result is not None).encode())
+                result = game.add_mob(Cord.from_dict(params["coords"]), params["name"], params["hello"], params["hp"])
+                writer.write(json.dumps(result).encode())
             case 'attack':
                 params = json_data["params"]
                 result = game.attack_monster(params["name"], params["hp"])
