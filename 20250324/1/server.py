@@ -64,7 +64,8 @@ class Field:
 
 
 class Player:
-    def __init__(self):
+    def __init__(self, player_id):
+        self.id = player_id
         self.cord = Cord()
 
     def move(self, direction: Cord):
@@ -74,17 +75,20 @@ class Player:
 
 class GameSession:
     monsters = set()
+    players = dict()
 
     def __init__(self):
         print("<<< Welcome to Python-MUD 0.1 >>>")
         self.field = Field()
-        self.player = Player()
 
-    def get_current_monster(self) -> Mob | None:
-        return self.field.get_monster(self.player.cord)
+    def get_current_monster(self, cord: Cord) -> Mob | None:
+        return self.field.get_monster(cord)
 
     def get_monsters(self):
         return self.monsters
+
+    def get_players(self):
+        return self.players.keys()
 
     def add_mob(self, cord: Cord, name: str, message: str, hp: int) -> bool:
         if not (answer := self.field.add_mob(cord, name, message, hp)) is None:
@@ -92,52 +96,91 @@ class GameSession:
             return True
         return False
 
-    def encounter(self):
-        if self.field.check_cell(self.player.cord):
-            return self.field.get_monster(self.player.cord).name, self.field.get_monster(self.player.cord).message
+    def add_player(self, player_id):
+        player = Player(player_id)
+        self.players[player_id] = player
 
-    def move_player(self, direction: Cord):
-        current_cord = self.player.move(direction)
-        if response_monster := self.encounter():
+    def del_player(self, player_id):
+        del self.players[player_id]
+
+    def encounter(self, cord: Cord):
+        if self.field.check_cell(cord):
+            return self.field.get_monster(cord).name, self.field.get_monster(cord).message
+
+    def move_player(self, player_id, direction: Cord):
+        player = self.players[player_id]
+        current_cord = player.move(direction)
+        if response_monster := self.encounter(player.cord):
             return {"coord": current_cord.to_dict(), "name": response_monster[0], "message": response_monster[1]}
         else:
             return {"coord": current_cord.to_dict()}
 
-    def attack_monster(self, name: str, damage: int):
-        if self.field.check_cell(self.player.cord) and (
-                monster := self.field.get_monster(self.player.cord)).name == name:
+    def attack_monster(self, player_id, name: str, damage: int):
+        player = self.players[player_id]
+        if self.field.check_cell(player) and (
+                monster := self.field.get_monster(player)).name == name:
             hp_value, damage_value = monster.get_damage(damage)
             if hp_value == 0:
-                self.field.del_mob(self.player.cord)
+                self.field.del_mob(player)
                 self.monsters.remove(monster)
             return hp_value, damage_value
         else:
             return None
 
 
-async def echo(reader, writer):
-    while data := await reader.readline():
-        match (json_data := json.loads(data.decode()))['command']:
-            case 'move':
-                result = game.move_player(Cord(**json_data["params"]))
-                writer.write(json.dumps(result).encode())
-            case 'addmob':
-                params = json_data["params"]
-                result = game.add_mob(Cord.from_dict(params["coords"]), params["name"], params["hello"], params["hp"])
-                writer.write(json.dumps(result).encode())
-            case 'attack':
-                params = json_data["params"]
-                result = game.attack_monster(params["name"], params["hp"])
-                writer.write(json.dumps(result).encode())
-    writer.close()
-    await writer.wait_closed()
+async def send_notifications(message, exception: str):
+    for queue in clients.keys():
+        if queue != exception:
+            await clients[queue].put(message)
+
+
+async def client_connection(reader, writer):
+    player_id = "{}:{}".format(*writer.get_extra_info('peername'))
+    game.add_player(player_id)
+    await send_notifications(f"Player {player_id} joined", player_id)
+    queue = asyncio.Queue()
+    clients[player_id] = queue
+
+    send = asyncio.create_task(reader.readline())
+    receive = asyncio.create_task(queue.get())
+    while True:
+        done, pending = await asyncio.wait([send, receive], return_when=asyncio.FIRST_COMPLETED)
+        for task in done:
+            if task is send:
+                send = asyncio.create_task(reader.readline())
+                data = task.result()
+                if not data:
+                    game.del_player(player_id)
+                    await send_notifications(f"Player {player_id} has left", player_id)
+                    return
+                json_data = json.loads(data.decode())
+
+                match json_data['command']:
+                    case 'move':
+                        result = game.move_player(player_id, Cord(**json_data["params"]))
+                        await queue.put(json.dumps(result))
+                    case 'addmob':
+                        params = json_data["params"]
+                        result = game.add_mob(Cord.from_dict(params["coords"]), params["name"], params["hello"],
+                                              params["hp"])
+                        await queue.put(json.dumps(result))
+                    case 'attack':
+                        params = json_data["params"]
+                        result = game.attack_monster(player_id, params["name"], params["hp"])
+                        await queue.put(json.dumps(result))
+
+            elif task is receive:
+                receive = asyncio.create_task(queue.get())
+                writer.write(f"{task.result()}\n".encode())
+                await writer.drain()
 
 
 async def main():
-    server = await asyncio.start_server(echo, '0.0.0.0', 1337)
+    server = await asyncio.start_server(client_connection, '0.0.0.0', 1337)
     async with server:
         await server.serve_forever()
 
 
+clients = dict()
 game = GameSession()
 asyncio.run(main())
