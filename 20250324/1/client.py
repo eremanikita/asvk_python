@@ -9,6 +9,10 @@ import json
 from cowsay import list_cows
 
 
+class Cows:
+    custom_cows = ["jgsbat"]
+
+
 class Cord:
     def __init__(self, x=0, y=0):
         self.x: int = x
@@ -126,7 +130,7 @@ class MUDGame(cmd.Cmd):
     def complete_attack(self, text, line, begidx, endidx):
         parts = line.split(" ")
         if len(parts) == 2:
-            return [c for c in list_cows() if c.startswith(text)]
+            return [c for c in list_cows() + Cows.custom_cows if c.startswith(text)]
         elif len(parts) == 3:
             return ["with"]
         elif len(parts) > 3 and parts[2] == "with":
