@@ -1,11 +1,22 @@
-from enum import Enum
-from cowsay import list_cows
+from io import StringIO
+
 import asyncio
 import json
+from cowsay import cowsay, read_dot_cow, list_cows
 
 
-class Cows(Enum):
-    JGSBAT = "jgsbat"
+class Cow:
+    custom_cows = {
+        "jgsbat": """    ,_                    _,
+    ) '-._  ,_    _,  _.-' (
+    )  _.-'.|\\\\--//|.'-._  (
+     )'   .'\\/o\\/o\\/'.   `(
+      ) .' . \\====/ . '. (
+       )  / <<    >> \\  (
+        '-._/``  ``\\_.-'
+  jgs     __\\\\'--'//__
+         (((""`  `"")))"""
+    }
 
 
 class Cord:
@@ -40,7 +51,7 @@ class Mob:
 
     @staticmethod
     def check_name(name):
-        return name in list_cows() or any(cow.name == name for cow in Cows)
+        return name in list_cows() or name in Cow.custom_cows
 
 
 class Field:
@@ -75,7 +86,7 @@ class Player:
 
 class GameSession:
     monsters = set()
-    players = dict()
+    users = dict()
 
     def __init__(self):
         print("<<< Welcome to Python-MUD 0.1 >>>")
@@ -87,92 +98,146 @@ class GameSession:
     def get_monsters(self):
         return self.monsters
 
-    def get_players(self):
-        return self.players.keys()
-
-    def add_mob(self, cord: Cord, name: str, message: str, hp: int) -> bool:
+    def add_mob(self, cord: Cord, name: str, message: str, hp: int):
         if not (answer := self.field.add_mob(cord, name, message, hp)) is None:
             self.monsters.add(answer)
-            return True
-        return False
+        return {"monster": answer, "coords": cord}
 
     def add_player(self, player_id):
         player = Player(player_id)
-        self.players[player_id] = player
+        self.users[player_id] = player
 
     def del_player(self, player_id):
-        del self.players[player_id]
+        del self.users[player_id]
 
     def encounter(self, cord: Cord):
         if self.field.check_cell(cord):
             return self.field.get_monster(cord).name, self.field.get_monster(cord).message
 
     def move_player(self, player_id, direction: Cord):
-        player = self.players[player_id]
+        player = self.users[player_id]
         current_cord = player.move(direction)
         if response_monster := self.encounter(player.cord):
-            return {"coord": current_cord.to_dict(), "name": response_monster[0], "message": response_monster[1]}
+            return {"coords": current_cord.to_dict(), "name": response_monster[0], "message": response_monster[1]}
         else:
-            return {"coord": current_cord.to_dict()}
+            return {"coords": current_cord.to_dict(), "name": None, "message": None}
 
     def attack_monster(self, player_id, name: str, damage: int):
-        player = self.players[player_id]
-        if self.field.check_cell(player) and (
-                monster := self.field.get_monster(player)).name == name:
+        player = self.users[player_id]
+        if self.field.check_cell(player.cord) and (monster := self.field.get_monster(player.cord)) and monster.name == name:
             hp_value, damage_value = monster.get_damage(damage)
             if hp_value == 0:
-                self.field.del_mob(player)
+                self.field.del_mob(player.cord)
                 self.monsters.remove(monster)
-            return hp_value, damage_value
+            return {"hp_remain": hp_value, "damage": damage_value, "name": name}
         else:
             return None
 
 
+class UIResponse:
+
+    @staticmethod
+    def move_response(params):
+        answer = ""
+        answer += f"Moved to {Cord.from_dict(params["coords"])}\n"
+        name, message = params["name"], params["message"]
+        if name:
+            if name in list_cows():
+                return cowsay(message, cow=name)
+            else:
+                return cowsay(message, cowfile=read_dot_cow(StringIO(Cow.custom_cows[name])))
+        return answer
+
+    @staticmethod
+    def addmob_response(params):
+        monster, cord = params["monster"], params["coords"]
+        if monster:
+            return f"Added monster {monster.name} to {cord} saying {monster.message}\n"
+        return "Cannot add unknown monster\n"
+
+    @staticmethod
+    def attack_response(params):
+        if params:
+            answer = f"Attacked {params["name"]}, damage {params["damage"]} hp\n"
+            if params["hp_remain"] == 0:
+                answer += f"{params["name"]} died\n"
+            else:
+                answer += f"{params["name"]} now has {params['hp_remain']}\n"
+            return answer
+        else:
+            return "No monster here"
+
+
 async def send_notifications(message, exception: str):
-    for queue in clients.keys():
+    for queue in users.keys():
         if queue != exception:
-            await clients[queue].put(message)
+            await users[queue].put(message)
 
 
 async def client_connection(reader, writer):
     player_id = "{}:{}".format(*writer.get_extra_info('peername'))
-    game.add_player(player_id)
-    await send_notifications(f"Player {player_id} joined", player_id)
     queue = asyncio.Queue()
-    clients[player_id] = queue
+    username = None
 
     send = asyncio.create_task(reader.readline())
     receive = asyncio.create_task(queue.get())
-    while True:
+    while not reader.at_eof():
         done, pending = await asyncio.wait([send, receive], return_when=asyncio.FIRST_COMPLETED)
-        for task in done:
-            if task is send:
+        for request in done:
+            if request is send:
                 send = asyncio.create_task(reader.readline())
-                data = task.result()
+                data = request.result()
                 if not data:
-                    game.del_player(player_id)
-                    await send_notifications(f"Player {player_id} has left", player_id)
-                    return
-                json_data = json.loads(data.decode())
+                    break
 
+                json_data = json.loads(data.decode())
                 match json_data['command']:
+                    case 'register':
+                        username = json_data['username']
+                        if username in users:
+                            writer.write(f"0:username {username} exists.\n".encode())
+                        else:
+                            users[username] = queue
+                            game.add_player(username)
+                            writer.write(f"Hello, {username} in MUD game!\n".encode())
+                            await send_notifications(f"{username} joined.\n", username)
                     case 'move':
-                        result = game.move_player(player_id, Cord(**json_data["params"]))
-                        await queue.put(json.dumps(result))
+                        result = game.move_player(username, Cord(**json_data["params"]))
+                        answer = UIResponse.move_response(result)
+                        writer.write(answer.encode())
                     case 'addmob':
                         params = json_data["params"]
                         result = game.add_mob(Cord.from_dict(params["coords"]), params["name"], params["hello"],
                                               params["hp"])
-                        await queue.put(json.dumps(result))
+                        answer = UIResponse.addmob_response(result)
+                        writer.write(answer.encode())
+                        if result["monster"]:
+                            await send_notifications(f"{username} added {params["name"]} with {params["hp"]} hp.",
+                                                     username)
                     case 'attack':
                         params = json_data["params"]
-                        result = game.attack_monster(player_id, params["name"], params["hp"])
-                        await queue.put(json.dumps(result))
+                        result = game.attack_monster(username, params["name"], params["hp"])
+                        answer = UIResponse.attack_response(result)
+                        writer.write(answer.encode())
+                        if result:
+                            notification = ""
+                            notification += f"{username} attacked {params["name"]}. Damage {result["damage"]}.\n"
+                            if result["hp_remain"] == 0:
+                                notification += f"{result["name"]} died\n"
+                            else:
+                                notification += f"{result["name"]} now has {result['hp_remain']}.\n"
+                            await send_notifications(notification, username)
 
-            elif task is receive:
+            elif request is receive:
                 receive = asyncio.create_task(queue.get())
-                writer.write(f"{task.result()}\n".encode())
+                writer.write(f"{request.result()}\n".encode())
                 await writer.drain()
+
+    if username:
+        game.del_player(username)
+        await send_notifications(f"{username} left", username)
+    writer.close()
+    await writer.wait_closed()
 
 
 async def main():
@@ -181,6 +246,6 @@ async def main():
         await server.serve_forever()
 
 
-clients = dict()
+users = dict()
 game = GameSession()
 asyncio.run(main())
