@@ -3,25 +3,10 @@ import cmd
 import sys
 import socket
 import shlex
+import threading
 from enum import Enum
 import json
-from io import StringIO
-
-from cowsay import list_cows, cowsay, read_dot_cow
-
-
-class Cow:
-    custom_cows = {
-        "jgsbat": """    ,_                    _,
-    ) '-._  ,_    _,  _.-' (
-    )  _.-'.|\\\\--//|.'-._  (
-     )'   .'\\/o\\/o\\/'.   `(
-      ) .' . \\====/ . '. (
-       )  / <<    >> \\  (
-        '-._/``  ``\\_.-'
-  jgs     __\\\\'--'//__
-         (((""`  `"")))"""
-    }
+from cowsay import list_cows
 
 
 class Cord:
@@ -98,63 +83,24 @@ class ParserService:
         return -1
 
 
-class UIService:
-    @staticmethod
-    def print_player_move(response):
-        print(f"Moved to {Cord.from_dict(response["coord"])}")
-        if "name" in response:
-            name, message = response["name"], response["message"]
-            if name in list_cows():
-                print(cowsay(message, cow=name))
-            else:
-                print(cowsay(message, cowfile=read_dot_cow(StringIO(Cow.custom_cows[name]))))
-
-    @staticmethod
-    def print_addmob(response, name, coords, message):
-        if response:
-            print(
-                f"Added monster {name} to {Cord.from_dict(coords)} saying {message}")
-        else:
-            print("Cannot add unknown monster")
-
-    @staticmethod
-    def print_attack(response, name):
-        if response:
-            print(f"Attacked {name}, damage {response[1]} hp")
-            if response[0] == 0:
-                print(f"{name} died")
-            else:
-                print(f"{name} now has {response[0]}")
-        else:
-            print("No monster here")
-
-
 class MUDGame(cmd.Cmd):
     prompt = "command>> "
 
     def do_up(self, args):
         """Move the player up"""
         s.sendall((json.dumps({"command": "move", "params": Direction.UP.value.to_dict()}) + "\n").encode())
-        response = json.loads(s.recv(1024).decode())
-        UIService.print_player_move(response)
 
     def do_down(self, args):
         """Move the player down"""
         s.sendall((json.dumps({"command": "move", "params": Direction.DOWN.value.to_dict()}) + "\n").encode())
-        response = json.loads(s.recv(1024).decode())
-        UIService.print_player_move(response)
 
     def do_left(self, args):
         """Move the player left"""
         s.sendall((json.dumps({"command": "move", "params": Direction.LEFT.value.to_dict()}) + "\n").encode())
-        response = json.loads(s.recv(1024).decode())
-        UIService.print_player_move(response)
 
     def do_right(self, args):
         """Move the player right"""
         s.sendall((json.dumps({"command": "move", "params": Direction.RIGHT.value.to_dict()}) + "\n").encode())
-        response = json.loads(s.recv(1024).decode())
-        UIService.print_player_move(response)
 
     def do_addmob(self, args):
         """Add a mob to the field
@@ -163,8 +109,6 @@ class MUDGame(cmd.Cmd):
         params = ParserService.parse_addmob(args)
         if params:
             s.sendall((json.dumps({"command": "addmob", "params": params}) + "\n").encode())
-            response = json.loads(s.recv(1024).decode())
-            UIService.print_addmob(response, params["name"], params["coords"], params["hello"])
         else:
             print("Invalid command")
 
@@ -178,8 +122,6 @@ class MUDGame(cmd.Cmd):
         if (result := ParserService.parse_attack(args)) != -1:
             s.sendall(
                 (json.dumps({"command": "attack", "params": {"name": result[0], "hp": result[1]}}) + "\n").encode())
-            response = json.loads(s.recv(1024).decode())
-            UIService.print_attack(response, result[0])
 
     def complete_attack(self, text, line, begidx, endidx):
         parts = line.split(" ")
@@ -195,11 +137,26 @@ class MUDGame(cmd.Cmd):
         print("Invalid command")
 
 
+def msg_reciever():
+    while response := s.recv(1024).rstrip().decode():
+        print(
+            f"\n{response}\n{cli.prompt}{readline.get_line_buffer() if readline.get_line_buffer()[-1] != "\n" else ""}",
+            end="", flush=True)
+
+
 if __name__ == "__main__":
     readline.parse_and_bind("bind ^I rl_complete")
-    host = "localhost" if len(sys.argv) < 2 else sys.argv[1]
-    port = 1337 if len(sys.argv) < 3 else int(sys.argv[2])
+    host = "localhost"
+    port = 1337
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         s.connect((host, port))
-        MUDGame().cmdloop()
+        s.sendall((json.dumps({"command": "register", "username": sys.argv[1]}) + "\n").encode())
+        response = s.recv(1024).rstrip().decode()
+        if response[0] != '0':
+            print(response)
+            cli = MUDGame()
+            request = threading.Thread(target=msg_reciever)
+            request.start()
+            cli.cmdloop()
+        else:
+            print(response[2:])
