@@ -235,6 +235,7 @@ async def client_connection(reader, writer):
 
     if username:
         game.del_player(username)
+        users.pop(username)
         await send_notifications(f"{username} left", username)
     writer.close()
     await writer.wait_closed()
