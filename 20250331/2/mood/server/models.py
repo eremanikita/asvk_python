@@ -1,5 +1,6 @@
 from cowsay import list_cows
 
+
 class Cow:
     custom_cows = {
         "jgsbat": """    ,_                    _,

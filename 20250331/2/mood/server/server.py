@@ -15,6 +15,7 @@ class Server:
 
     async def handle_connection(self, reader, writer):
         player_id = "{}:{}".format(*writer.get_extra_info('peername'))
+        print(f"{player_id} connected")
         queue = asyncio.Queue()
         username = None
 

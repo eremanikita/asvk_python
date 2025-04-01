@@ -15,6 +15,7 @@ class MUDGame(cmd.Cmd):
         self.s = socket
 
     def do_sayall(self, args):
+        """Send other users a text message"""
         if args:
             self.s.sendall((json.dumps({"command": "sayall", "message": shlex.split(args)[0]}) + "\n").encode())
 
@@ -71,6 +72,5 @@ class MUDGame(cmd.Cmd):
 
 def msg_reciever(cli, socket):
     while response := socket.recv(1024).rstrip().decode():
-        print(
-            f"\n{response}\n{cli.prompt}{readline.get_line_buffer() if (line := readline.get_line_buffer()) and line[-1] != "\n" else ""}",
-            end="", flush=True)
+        last_command = readline.get_line_buffer() if (line := readline.get_line_buffer()) and line[-1] != "\n" else ""
+        print(f"\n{response}\n{cli.prompt}{last_command}", end="", flush=True)

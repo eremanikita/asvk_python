@@ -1,5 +1,6 @@
 from .models import Field, Cord, Mob, Player
 
+
 class GameSession:
     monsters = set()
     users = dict()
