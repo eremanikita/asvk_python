@@ -201,6 +201,8 @@ async def client_connection(reader, writer):
                             game.add_player(username)
                             writer.write(f"Hello, {username} in MUD game!\n".encode())
                             await send_notifications(f"{username} joined.\n", username)
+                    case 'sayall':
+                        await send_notifications(f"{username}: {json_data['message']}", username)
                     case 'move':
                         result = game.move_player(username, Cord(**json_data["params"]))
                         answer = UIResponse.move_response(result)

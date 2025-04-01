@@ -90,6 +90,10 @@ class ParserService:
 class MUDGame(cmd.Cmd):
     prompt = "command>> "
 
+    def do_sayall(self, args):
+        if args:
+            s.sendall((json.dumps({"command": "sayall", "message": shlex.split(args)[0]}) + "\n").encode())
+
     def do_up(self, args):
         """Move the player up"""
         s.sendall((json.dumps({"command": "move", "params": Direction.UP.value.to_dict()}) + "\n").encode())
@@ -144,7 +148,7 @@ class MUDGame(cmd.Cmd):
 def msg_reciever():
     while response := s.recv(1024).rstrip().decode():
         print(
-            f"\n{response}\n{cli.prompt}{readline.get_line_buffer() if readline.get_line_buffer()[-1] != "\n" else ""}",
+            f"\n{response}\n{cli.prompt}{readline.get_line_buffer() if (line := readline.get_line_buffer()) and line[-1] != "\n" else ""}",
             end="", flush=True)
 
 
