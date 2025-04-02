@@ -6,14 +6,20 @@ from .ui import send_notifications, UIResponse
 
 
 class Server:
+    """Server class."""
 
     def __init__(self, host='0.0.0.0', port=1337):
+        """Initialize the server."""
         self.host = host
         self.port = port
         self.users = dict()
         self.game = GameSession()
 
     async def handle_connection(self, reader, writer):
+        """Handle each async client connection.
+
+        get commands from the client, make some logic and return some response
+        """
         player_id = "{}:{}".format(*writer.get_extra_info('peername'))
         print(f"{player_id} connected")
         queue = asyncio.Queue()
@@ -87,6 +93,7 @@ class Server:
         await writer.wait_closed()
 
     async def run(self):
+        """Run the server."""
         server = await asyncio.start_server(self.handle_connection, self.host, self.port)
         async with server:
             await server.serve_forever()

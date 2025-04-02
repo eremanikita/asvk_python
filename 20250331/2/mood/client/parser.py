@@ -3,10 +3,18 @@ from .models import Cord, Weapon
 
 
 class ParserService:
+    """Service for parsing input commands."""
+
     required_keys = {"name", "hello", "hp", "coords"}
 
     @staticmethod
     def parse_addmob(line: str):
+        """Parse addmob command.
+
+            addmob <name> hello <message> hp <hp> coords <x, y>
+
+            return a dictionary of provided params else None
+        """
         tokens = shlex.split(line)
         params = {"name": tokens[0]}
         i = 1
@@ -31,6 +39,12 @@ class ParserService:
 
     @staticmethod
     def parse_attack(line):
+        """Parse attack command.
+
+            attack <name> with sword/spear/axe
+
+            return (<name>, <damage>) else -1
+        """
         tokens = shlex.split(line)
         if len(tokens) == 0:
             print("Invalid command")

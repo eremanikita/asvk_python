@@ -1,3 +1,4 @@
+"""Main client python file to connect to the server."""
 import sys
 import socket
 import threading

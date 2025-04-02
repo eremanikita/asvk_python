@@ -8,37 +8,41 @@ from .parser import ParserService
 
 
 class MUDGame(cmd.Cmd):
+    """Command line interface for client typing."""
+
     prompt = "command>> "
 
     def __init__(self, socket):
+        """Init command line interface."""
         super().__init__()
         self.s = socket
 
     def do_sayall(self, args):
-        """Send other users a text message"""
+        """Send other users a text message."""
         if args:
             self.s.sendall((json.dumps({"command": "sayall", "message": shlex.split(args)[0]}) + "\n").encode())
 
     def do_up(self, args):
-        """Move the player up"""
+        """Move the player up."""
         self.s.sendall((json.dumps({"command": "move", "params": Direction.UP.value.to_dict()}) + "\n").encode())
 
     def do_down(self, args):
-        """Move the player down"""
+        """Move the player down."""
         self.s.sendall((json.dumps({"command": "move", "params": Direction.DOWN.value.to_dict()}) + "\n").encode())
 
     def do_left(self, args):
-        """Move the player left"""
+        """Move the player left."""
         self.s.sendall((json.dumps({"command": "move", "params": Direction.LEFT.value.to_dict()}) + "\n").encode())
 
     def do_right(self, args):
-        """Move the player right"""
+        """Move the player right."""
         self.s.sendall((json.dumps({"command": "move", "params": Direction.RIGHT.value.to_dict()}) + "\n").encode())
 
     def do_addmob(self, args):
-        """Add a mob to the field
-        addmob <monster_name> hello <hello_string> hp <hitpoints> coords <x> <y>"""
+        """Add a mob to the field.
 
+        addmob <monster_name> hello <hello_string> hp <hitpoints> coords <x> <y>
+        """
         params = ParserService.parse_addmob(args)
         if params:
             self.s.sendall((json.dumps({"command": "addmob", "params": params}) + "\n").encode())
@@ -46,17 +50,27 @@ class MUDGame(cmd.Cmd):
             print("Invalid command")
 
     def do_attack(self, args):
-        """Attack the specific monster in the same cell if it is on it
+        """Attack the specific monster in the same cell if it is on it.
+
         weapons:
             sword: -10 hp
             spear: -15 hp
             axe: -20 hp
-        nothing if there is no monster in the same cell or the name is incorrect"""
+        nothing if there is no monster in the same cell or the name is incorrect
+        """
         if (result := ParserService.parse_attack(args)) != -1:
             self.s.sendall(
                 (json.dumps({"command": "attack", "params": {"name": result[0], "hp": result[1]}}) + "\n").encode())
 
     def complete_attack(self, text, line, begidx, endidx):
+        """Comple attack command.
+
+        attack <name> with sword/spear/axe
+
+            - complete name with available cows names
+            - complete with
+            - complete weapon name
+        """
         parts = line.split(" ")
         if len(parts) == 2:
             return [c for c in list_cows() + Cows.custom_cows if c.startswith(text)]
@@ -67,10 +81,12 @@ class MUDGame(cmd.Cmd):
         return []
 
     def default(self, line):
+        """Handle incorrect input."""
         print("Invalid command")
 
 
 def msg_reciever(cli, socket):
+    """Handle incoming messages from the server."""
     while response := socket.recv(1024).rstrip().decode():
         last_command = readline.get_line_buffer() if (line := readline.get_line_buffer()) and line[-1] != "\n" else ""
         print(f"\n{response}\n{cli.prompt}{last_command}", end="", flush=True)

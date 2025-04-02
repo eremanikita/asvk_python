@@ -4,9 +4,11 @@ from .models import Cord, Cow
 
 
 class UIResponse:
+    """Service to provide UI responses for client."""
 
     @staticmethod
     def move_response(params):
+        """Compile response from the provided move params."""
         answer = ""
         answer += f"Moved to {Cord.from_dict(params["coords"])}\n"
         name, message = params["name"], params["message"]
@@ -19,6 +21,7 @@ class UIResponse:
 
     @staticmethod
     def addmob_response(params):
+        """Compile response from the provided addmob params."""
         monster, cord = params["monster"], params["coords"]
         if monster:
             return f"Added monster {monster.name} to {cord} saying {monster.message}\n"
@@ -26,6 +29,7 @@ class UIResponse:
 
     @staticmethod
     def attack_response(params):
+        """Compile response from the provided attack params."""
         if params:
             answer = f"Attacked {params["name"]}, damage {params["damage"]} hp\n"
             if params["hp_remain"] == 0:
@@ -38,6 +42,7 @@ class UIResponse:
 
 
 async def send_notifications(users, message, exception: str):
+    """Async function to send notifications all users except one."""
     for queue in users.keys():
         if queue != exception:
             await users[queue].put(message)
